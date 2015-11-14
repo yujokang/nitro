@@ -19,9 +19,11 @@
 
 # cache/backup
 *~
+*.swp
 
 #target
 nitro
+examples/basic
 
 #KDevelop files
 *.kdev4

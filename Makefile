@@ -2,14 +2,15 @@ CC = gcc
 
 TARGET = nitro
 LIBTARGET = libnitro
+LIBTARGET_FILE = $(LIBTARGET).a
 CFLAGS = -g -Wall
 DEPS = libnitro.h
 LIBOBJ = libnitro.o
 OBJ = nitro_main.o $(LIBOBJ)
 
-.PHONY: default all clean
+.PHONY: examples default all clean
 
-default: $(TARGET) $(LIBTARGET)
+default: $(TARGET) $(LIBTARGET) examples
 all: default
 
 %.o: %.c $(DEPS)
@@ -21,7 +22,11 @@ $(TARGET): $(OBJ)
 $(LIBTARGET): 
 	ar -cvq $(LIBTARGET).a $(LIBOBJ)
 
+examples: $(LIBTARGET_FILE)
+	make -C $@
+
 clean:
 	-rm -f *.o
 	-rm -f $(TARGET)
 	-rm -f $(LIBTARGET).a
+	make -C examples clean

@@ -5,6 +5,8 @@
 #include <linux/kvm.h>
 #include <linux/types.h>
 
+#include <stdlib.h>
+
 #define NITRO_MAX_VCPUS 64
 
 struct nitro_vcpus{

@@ -1,27 +1,55 @@
+/*
+ * a bare-minimum example, that simply listens for chosen system calls,
+ * and displays general information about them.
+ * Note that we assume only one VCPU,
+ * so the VCPU parameters in get_event, get_regs, get_sregs and continue_vm
+ * are 0.
+ */
 #include <libnitro.h>
 
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 
+/*
+ * the flag indicating that this program should keep listening
+ * for system calls.
+ */
 static int running;
 
+/*
+ * When receiving a chosen signal (eg. SIGINT),
+ * clear "running" to initiate cleanup.
+ * @param signum	the received signal
+ */
 static void handle_stop(int signum)
 {
 	running = 0;
 }
 
+/*
+ * Perform one-time setup
+ * to listen to system calls in the given virtual machine.
+ * @param vm_pid	the PID of the process running the virtual machine
+ * @param syscalls	the array of system calls
+ * @param n_syscalls	the length of syscalls
+ * @return		0 iff successful
+ */
 static int setup(pid_t vm_pid, int *syscalls, unsigned n_syscalls)
 {
 	int n_vcpus;
 	int vmfd;
 	int err;
 
+	/* setup 1: Open the KVM module, ie. open the device file. */
 	if ((err = init_kvm())) {
 		fprintf(stderr, "Unable to initialize KVM\n");
 		goto INIT_FAIL;
 	}
 
+	/*
+	 * setup 2: Attach to the virtual machine running under the given PID.
+	 */
 	vmfd = attach_vm(vm_pid);
 	printf("attach_vm returned %d.\n", vmfd);
 	if (vmfd < 0) {
@@ -30,6 +58,7 @@ static int setup(pid_t vm_pid, int *syscalls, unsigned n_syscalls)
 		goto ATTACH_VM_FAIL;
 	}
 
+	/* setup 3: Attach to the VCPUS of the virtual machine. */
 	n_vcpus = attach_vcpus();
 	printf("attach_vcpus returned %d.\n", n_vcpus);
 	if (n_vcpus <= 0) {
@@ -38,6 +67,7 @@ static int setup(pid_t vm_pid, int *syscalls, unsigned n_syscalls)
 		goto ATTACH_VCPUS_FAIL;
 	}
 
+	/** setup 4: Start listening for the given system calls. */
 	if ((err = set_syscall_trap(syscalls, n_syscalls))) {
 		fprintf(stderr, "Unable to listen for system calls");
 		goto SET_SYSCALL_TRAP_FAIL;
@@ -53,6 +83,10 @@ INIT_FAIL:
 	return err;
 }
 
+/*
+ * Report on a single event during the loop.
+ * @return		0 iff successful
+ */
 static int check_loop_event()
 {
 	struct kvm_regs regs;
@@ -62,25 +96,44 @@ static int check_loop_event()
 
 	event = get_event(0, &event_data);
 
+	/*
+	 * check_loop_event 1:
+	 * Fetch the directly-accessible integer registers.
+	 */
 	if (get_regs(0, &regs)) {
 		printf("Error getting general registers. Exiting.\n");
 		return -1;
 	}
+	/*
+	 * check_loop_event 2:
+	 * Fetch the segment and memory management registers.
+	 */
 	if (get_sregs(0, &sregs)) {
 		printf("Error getting system registers. Exiting.\n");
 		return -1;
 	}
 	switch (event) {
+	/*
+	 * check_loop_event 3 a:
+	 * syscall has been called, indicating a system call from user space,
+	 * so that the information includes the system call parameters.
+	 */
 	case KVM_NITRO_EVENT_SYSCALL:
 		printf("Syscall entry by cr3 =\t0x%llx, id = %lx:\n",
 		       sregs.cr3, event_data.syscall);
 		printf("\tSyscall command = %llu\n", regs.rax);
 		break;
+	/*
+	 * check_loop_event 3 b:
+	 * sysret has been called, indicating a return from kernel space,
+	 * so that the information includes the return value of the system call.
+	 */
 	case KVM_NITRO_EVENT_SYSRET:
 		printf("Syscall exit by cr3 =\t0x%llx, id = %lx:\n",
 		       sregs.cr3, event_data.syscall);
 		printf("\tReturn value= %llu\n", regs.rax);
 		break;
+	/* check_loop_event 3 c: An unexpected error event has occured. */
 	case KVM_NITRO_EVENT_ERROR:
 		fprintf(stderr, "Error event. Exiting.\n");
 		return -1;
@@ -89,17 +142,31 @@ static int check_loop_event()
 	return 0;
 }
 
+/*
+ * Cleanup procedure to stop listening to system calls,
+ * and close the KVM file descriptor.
+ */
 static void cleanup()
 {
 	int ret;
 
+	/* cleanup 1: Stop listening to system calls. */
 	ret = unset_syscall_trap();
 	printf("unset_syscall_trap returned %d.\n", ret);
 
+	/* cleanup 2: Close the KVM module, ie. close the device file. */
 	ret = close_kvm();
 	printf("close_kvm returned %d.\n", ret);
 }
 
+/*
+ * Perform all the steps,
+ * now that the parameters have been read from the command line.
+ * @param vm_pid	the PID of the process running the virtual machine
+ * @param syscalls	the array of system calls
+ * @param n_syscalls	the length of syscalls
+ * @return		0 iff successful
+ */
 static int track(pid_t vm_pid, int *syscalls, unsigned n_syscalls)
 {
 	int err;
@@ -129,16 +196,25 @@ static int track(pid_t vm_pid, int *syscalls, unsigned n_syscalls)
 	return err;
 }
 
+/* the maximum number of digits to read */
 #define MAX_DIGITS	10
+/* accept decimal numbers only */
 #define BASE		10
+/* the lowest decimal digit, corresponding to 0 */
 #define LEAST_DIGIT	'0'
 
+/*
+ * Check the input string before converting it to an integer.
+ * @param out	the destination, which will only be changed for a valid string
+ * @param src	the source string that should represent an integer
+ * @return	0 iff the input string is short enough and contains only digits
+ */
 int safe_atoi(int *out, const char *src)
 {
 	int total = 0;
 	unsigned char_i;
 
-	for (char_i = 0; (char_i < MAX_DIGITS); char_i++) {
+	for (char_i = 0; char_i < MAX_DIGITS; char_i++) {
 		char current_char = src[char_i];
 		int current_value;
 
@@ -157,6 +233,11 @@ int safe_atoi(int *out, const char *src)
 	return -1;
 }
 
+/*
+ * default system call numbers for 64-bit Linux only
+ * Note that interrupt-based system calls
+ * still use the 32-bit system call numbers.
+ */
 #define N_DEFAULT_SYSCALLS	3
 static int default_syscalls[N_DEFAULT_SYSCALLS] = {
 	159, /* adjtimex */
@@ -164,7 +245,12 @@ static int default_syscalls[N_DEFAULT_SYSCALLS] = {
 	170, /* sethostname */
 };
 
+/*
+ * The first argument after the program name
+ * is the PID of the virtual machine process.
+ */
 #define QEMU_PID_ARG		1
+/* Optionally, the user can append system call numbers. */
 #define SYSCALL_ARGS_START	(QEMU_PID_ARG + 1)
 
 int main(int argc, char *argv[])
@@ -175,6 +261,7 @@ int main(int argc, char *argv[])
 	int *syscalls;
 	unsigned syscall_i;
 
+	/* Convert command line arguments. */
 	if (argc <= QEMU_PID_ARG) {
 		fprintf(stderr, "Usage: [qemu pid] [system call numbers...]\n");
 		return -1;
@@ -197,7 +284,9 @@ int main(int argc, char *argv[])
 
 			if (err < 0) {
 				fprintf(stderr, "Unable to parse system call "
-					"%u: \"%s\"", syscall_i, syscall_str);
+					"%u, \"%s\". "
+					"It must be an integer.\n",
+					syscall_i, syscall_str);
 				return -1;
 			}
 		}
@@ -206,5 +295,6 @@ int main(int argc, char *argv[])
 		syscalls = default_syscalls;
 	}
 
+	/* Start using the nitro library. */
 	return track(vm_pid, syscalls, n_syscalls);
 }

@@ -124,6 +124,17 @@ static int check_loop_event()
 		printf("Syscall entry by cr3 =\t0x%llx, id = %lx:\n",
 		       sregs.cr3, event_data.syscall);
 		printf("\tSyscall command = %llu\n", regs.rax);
+		/*
+		 * the current instruction pointer,
+		 * which should be the entry point to the system call handler
+		 * in kernel space
+		 */
+		printf("\tInstruction pointer =\t0x%llx\n", regs.rip);
+		/*
+		 * the return pointer, which should be right after
+		 * the user space address that made the system call
+		 */
+		printf("\tReturn pointer =\t0x%llx\n", regs.rcx);
 		break;
 	/*
 	 * check_loop_event 3 b:
@@ -133,7 +144,12 @@ static int check_loop_event()
 	case KVM_NITRO_EVENT_SYSRET:
 		printf("Syscall exit by cr3 =\t0x%llx, id = %lx:\n",
 		       sregs.cr3, event_data.syscall);
-		printf("\tReturn value= %llu\n", regs.rax);
+		printf("\tReturn value = %llu\n", regs.rax);
+		/*
+		 * the current instruction pointer, which should be
+		 * the return pointer from the corresponding syscall event
+		 */
+		printf("\tInstruction pointer =\t0x%llx\n", regs.rip);
 		break;
 	/* check_loop_event 3 c: An unexpected error event has occured. */
 	case KVM_NITRO_EVENT_ERROR:

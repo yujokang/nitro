@@ -5,6 +5,10 @@
 #include <sys/ioctl.h>
 #include <errno.h>
 #include <string.h>
+#include <sys/mman.h>
+#include <sys/stat.h>
+#include <errno.h>
+#include <stdio.h>
 
 #include "libnitro.h"
 #include "nitro.h"
@@ -162,5 +166,128 @@ int continue_vm(int vcpu_id){
   return kvm_vcpu_ioctl(vcpus.fds[vcpu_id],KVM_NITRO_CONTINUE);
 }
 
+/*
+ * unsafe version of init_ram_file that does not invalidate
+ * the fields of to_init on error.
+ * @param to_init	the output struct, which will be initialized
+ * @param file_path	the path to the RAM file to open and map
+ * @return		0 iff successful,
+ *			-1 otherwise,
+ *				in which case errno will be set by open or mmap
+ */
+static int _init_ram_file(struct ram_file *to_init, const char *file_path)
+{
+  struct stat size_holder;
+  int fd;
+  void *ram;
 
+  if (stat(file_path, &size_holder)) {
+    return -1;
+  }
 
+  if ((fd = open(file_path, O_RDWR)) == -1) {
+    return -1;
+  }
+
+  if ((ram = mmap(NULL, size_holder.st_size, PROT_READ | PROT_WRITE,
+		  MAP_SHARED, fd, 0)) == NULL) {
+    return -1;
+  }
+
+  to_init->fd = fd;
+  to_init->size = size_holder.st_size;
+  to_init->ram = ram;
+
+  return 0;
+}
+
+int init_ram_file(struct ram_file *to_init, const char *file_path)
+{
+  int err;
+  if ((err = _init_ram_file(to_init, file_path))) {
+    to_init->fd = -1;
+    to_init->size = 0;
+    to_init->ram = NULL;
+  }
+
+  return err;
+}
+
+int destroy_ram_file(struct ram_file *to_destroy)
+{
+  int err = 0;
+  if (munmap(to_destroy->ram, to_destroy->size)) {
+    err = -1;
+  } else {
+    to_destroy->size = 0;
+    to_destroy->ram = NULL;
+  }
+
+  if (close(to_destroy->fd)) {
+    err = -1;
+  } else {
+    to_destroy->fd = -1;
+  }
+
+  return err;
+}
+
+/*
+ * unsafe version of translate_addr
+ * that does not invalidate *guest_phys_ptr on error
+ * @param vcpu_id		the ID of the VCPU ID used for the
+ *				vcpu ioctl call
+ * @param ram			the RAM file information used to
+ *				calculate the file-mapped pointer
+ * @param v_addr		the virtual address to translate
+ * @param guest_phys_ptr	the output pointer
+ * @return			0 iff successful,
+ *				-1 if this function detected
+ *					that the translation is invalid,
+ *					or the address is too high,
+ *					in which case errno is set to EFAULT,
+ *				an error value by the ioctl call to KVM,
+ *					if it failed, in which case
+ *					ioctl sets errno.
+ */
+int _translate_addr(int vcpu_id, struct ram_file *ram, addr_t v_addr,
+		    void **guest_phys_ptr)
+{
+  struct kvm_translation translation;
+  addr_t physical_address;
+  int err;
+
+  translation.linear_address = v_addr;
+
+  if ((err = kvm_vcpu_ioctl(vcpus.fds[vcpu_id], KVM_NITRO_TRANSLATE,
+			    &translation))) {
+    return err;
+  }
+
+  if (!translation.valid) {
+    errno = EFAULT;
+    return -1;
+  }
+
+  physical_address = translation.physical_address;
+  if (physical_address >= ram->size) {
+    errno = EFAULT;
+    return -1;
+  }
+
+  *guest_phys_ptr = ram->ram + physical_address;
+
+  return 0;
+}
+
+int translate_addr(int vcpu_id, struct ram_file *ram, addr_t v_addr,
+		   void **guest_phys_ptr)
+{
+  int err;
+
+  if ((err = _translate_addr(vcpu_id, ram, v_addr, guest_phys_ptr))) {
+    *guest_phys_ptr = NULL;
+  }
+
+  return err;
+}

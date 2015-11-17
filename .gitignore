@@ -24,6 +24,7 @@
 #target
 nitro
 examples/basic
+examples/string_params
 
 #KDevelop files
 *.kdev4

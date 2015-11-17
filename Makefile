@@ -20,7 +20,7 @@ $(TARGET): $(OBJ)
 	gcc -o $@ $^ $(CFLAGS)
 
 $(LIBTARGET): 
-	ar -cvq $(LIBTARGET).a $(LIBOBJ)
+	ar -cvr $(LIBTARGET).a $(LIBOBJ)
 
 examples: $(LIBTARGET_FILE)
 	make -C $@

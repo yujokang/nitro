@@ -5,6 +5,8 @@
  * so the VCPU parameters in get_event, get_regs, get_sregs and continue_vm
  * are 0.
  */
+#include <user_utils.h>
+
 #include <libnitro.h>
 
 #include <signal.h>
@@ -184,53 +186,17 @@ static int track(pid_t vm_pid, int *syscalls, unsigned n_syscalls)
 		cont_err = continue_vm(0);
 		printf("continue_vm returned %d.\n", cont_err);
 		if (err) {
-			return err;
+			break;
 		}
 		if (cont_err) {
-			return cont_err;
+			err = cont_err;
+			break;
 		}
 	}
 
 	cleanup();
 
 	return err;
-}
-
-/* the maximum number of digits to read */
-#define MAX_DIGITS	10
-/* accept decimal numbers only */
-#define BASE		10
-/* the lowest decimal digit, corresponding to 0 */
-#define LEAST_DIGIT	'0'
-
-/*
- * Check the input string before converting it to an integer.
- * @param out	the destination, which will only be changed for a valid string
- * @param src	the source string that should represent an integer
- * @return	0 iff the input string is short enough and contains only digits
- */
-int safe_atoi(int *out, const char *src)
-{
-	int total = 0;
-	unsigned char_i;
-
-	for (char_i = 0; char_i < MAX_DIGITS; char_i++) {
-		char current_char = src[char_i];
-		int current_value;
-
-		if (LEAST_DIGIT <= current_char &&
-		    (current_value = (current_char - LEAST_DIGIT)) < BASE) {
-			total = BASE * total + current_value;
-		} else if (current_char == '\0') {
-			*out = total;
-
-			return 0;
-		} else {
-			return -1;
-		}
-	}
-
-	return -1;
 }
 
 /*

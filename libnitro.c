@@ -136,6 +136,10 @@ int set_syscall_trap(int *sc, int sc_size){
   return kvm_vm_ioctl(KVM_NITRO_SET_SYSCALL_TRAP,&sct);
 }
 
+int set_all_syscall_trap(){
+  return kvm_vm_ioctl(KVM_NITRO_SET_ALL_SYSCALL_TRAP);
+}
+
 int unset_syscall_trap(){
   return kvm_vm_ioctl(KVM_NITRO_UNSET_SYSCALL_TRAP);
 }

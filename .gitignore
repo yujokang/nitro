@@ -25,6 +25,7 @@
 nitro
 examples/basic
 examples/string_params
+examples/all_syscalls
 
 #KDevelop files
 *.kdev4

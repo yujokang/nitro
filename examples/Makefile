@@ -7,8 +7,9 @@ LDFLAGS+=$(LIBTARGET_FILE)
 COMMON_OBJS=user_utils.o
 BASIC_OBJECTS=basic_main.o
 STRING_PARAMS_OBJS=string_params_main.o
-OBJS=$(COMMON_OBJS) $(BASIC_OBJECTS) $(STRING_PARAMS_OBJS)
-BINS=basic string_params
+ALL_SYSCALLS_OBJS=all_syscalls_main.o
+OBJS=$(COMMON_OBJS) $(BASIC_OBJECTS) $(STRING_PARAMS_OBJS) $(ALL_SYSCALLS_OBJS)
+BINS=basic string_params all_syscalls
 
 TARGETS=$(OBJS) $(BINS)
 
@@ -20,6 +21,8 @@ all: $(TARGETS)
 basic: $(BASIC_OBJECTS) $(COMMON_OBJS)
 	$(CC) $^ $(CFLAGS) $(LDFLAGS) -o $@
 string_params: $(STRING_PARAMS_OBJS) $(COMMON_OBJS)
+	$(CC) $^ $(CFLAGS) $(LDFLAGS) -o $@
+all_syscalls: $(ALL_SYSCALLS_OBJS) $(COMMON_OBJS)
 	$(CC) $^ $(CFLAGS) $(LDFLAGS) -o $@
 
 clean:

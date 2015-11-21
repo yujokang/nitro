@@ -15,6 +15,11 @@ int get_num_vms();
 int attach_vm(pid_t);
 
 int set_syscall_trap(int*,int);
+/*
+ * Watch all system calls.
+ * @return	0 iff successful, -1 otherwise
+ */
+int set_all_syscall_trap();
 int unset_syscall_trap();
 
 //vm functions

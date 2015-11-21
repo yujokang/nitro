@@ -1,4 +1,7 @@
 nitro-ng
 ========
 
-KVM-based virtual machine introspection for malware analysis
+KVM-based virtual machine introspection for malware analysis.
+
+Requires at least commit 9af2e3f94b8856885d8d0e82345c9f61723914e1
+of https://github.com/yujokang/nitro-kmod.git.

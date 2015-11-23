@@ -98,6 +98,11 @@ static int check_loop_event()
 
 	event = get_event(0, &event_data);
 
+	if (event < 0) {
+		perror("Failed to fetch event");
+		return -1;
+	}
+
 	/*
 	 * check_loop_event 1:
 	 * Fetch the directly-accessible integer registers.
@@ -154,6 +159,9 @@ static int check_loop_event()
 	/* check_loop_event 3 c: An unexpected error event has occured. */
 	case KVM_NITRO_EVENT_ERROR:
 		fprintf(stderr, "Error event. Exiting.\n");
+		return -1;
+	default:
+		fprintf(stderr, "Unknown event, %d. Exiting.\n", event);
 		return -1;
 	}
 

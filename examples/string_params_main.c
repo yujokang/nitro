@@ -43,7 +43,7 @@ static int open_syscall[1] = {2};
 /*
  * Set up the connection to KVM, and open and map the RAM file.
  * @param vm_pid	the PID of the virtual machine process
- * @param file_path	the path the the RAM file
+ * @param file_path	the path to the RAM file
  * @param ram		the state of the RAM file,
  *			used throughout the execution of this program
  * @return		0 iff successful
@@ -140,6 +140,11 @@ static int check_loop_event(struct ram_file *ram)
 
 	event = get_event(0, &event_data);
 
+	if (event < 0) {
+		perror("Failed to fetch event");
+		return -1;
+	}
+
 	if (get_regs(0, &regs)) {
 		printf("Error getting general registers. Exiting.\n");
 		return -1;
@@ -164,6 +169,9 @@ static int check_loop_event(struct ram_file *ram)
 		break;
 	case KVM_NITRO_EVENT_ERROR:
 		fprintf(stderr, "Error event. Exiting.\n");
+		return -1;
+	default:
+		fprintf(stderr, "Unknown event, %d. Exiting.\n", event);
 		return -1;
 	}
 

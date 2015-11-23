@@ -147,6 +147,7 @@ static int check_loop_event()
 
 	if (event < 0) {
 		perror("Failed to fetch event");
+		return -1;
 	}
 
 	if (get_regs(0, &regs)) {

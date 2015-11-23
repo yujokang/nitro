@@ -147,7 +147,8 @@ check_search_loop(struct ram_file *ram, struct kvm_regs *regs,
 {
 	int ret = 0;
 
-	if (event == KVM_NITRO_EVENT_SYSCALL) {
+	switch (event) {
+	case KVM_NITRO_EVENT_SYSCALL: {
 		char *watched_file_arg = copy_string(regs->rdi, ram);
 
 		ret = 0;
@@ -173,6 +174,17 @@ check_search_loop(struct ram_file *ram, struct kvm_regs *regs,
 
 			free(watched_file_arg);
 		}
+	}
+	case KVM_NITRO_EVENT_SYSRET:
+		break;
+	case KVM_NITRO_EVENT_ERROR:
+		fprintf(stderr, "Error event. Exiting.\n");
+		ret = -1;
+		break;
+	default:
+		fprintf(stderr, "Unknown event, %d. Exiting.\n", event);
+		ret = -1;
+
 	}
 
 	return ret;
@@ -230,6 +242,7 @@ static int check_watch_loop(struct kvm_regs *regs, struct kvm_sregs *sregs,
 	case KVM_NITRO_EVENT_ERROR:
 		fprintf(stderr, "Error event. Exiting.\n");
 		ret = -1;
+		break;
 	default:
 		fprintf(stderr, "Unknown event, %d. Exiting.\n", event);
 		ret = -1;

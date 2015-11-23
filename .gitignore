@@ -21,11 +21,12 @@
 *~
 *.swp
 
-#target
+#targets
 nitro
 examples/basic
 examples/string_params
 examples/all_syscalls
+examples/file_user
 
 #KDevelop files
 *.kdev4

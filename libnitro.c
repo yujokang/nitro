@@ -144,6 +144,16 @@ int unset_syscall_trap(){
   return kvm_vm_ioctl(KVM_NITRO_UNSET_SYSCALL_TRAP);
 }
 
+int add_process_trap(ulong process)
+{
+	return kvm_vm_ioctl(KVM_NITRO_ADD_PROCESS_TRAP, &process);
+}
+
+int remove_process_trap(ulong process)
+{
+	return kvm_vm_ioctl(KVM_NITRO_REMOVE_PROCESS_TRAP, &process);
+}
+
 int get_regs(int vcpu_id, struct kvm_regs *regs){
   if(vcpu_id >= vcpus.num_vcpus)
     return -1;

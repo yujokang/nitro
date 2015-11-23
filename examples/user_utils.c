@@ -1,5 +1,8 @@
 #include <user_utils.h>
 
+#include <stdio.h>
+#include <string.h>
+
 /* the maximum number of digits to read */
 #define MAX_DIGITS	10
 /* accept decimal numbers only */
@@ -29,4 +32,18 @@ int safe_atoi(int *out, const char *src)
 	}
 
 	return -1;
+}
+
+
+char *copy_string(addr_t v_addr, struct ram_file *ram)
+{
+	void *guest_phys_ptr;
+
+	if (translate_addr(0, ram, v_addr, &guest_phys_ptr)) {
+		fprintf(stderr, "Failed to translate string pointer 0x%llx.\n",
+			v_addr);
+		return NULL;
+	}
+
+	return strdup((char *) guest_phys_ptr);
 }

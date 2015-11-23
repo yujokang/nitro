@@ -21,6 +21,24 @@ int set_syscall_trap(int*,int);
  */
 int set_all_syscall_trap();
 int unset_syscall_trap();
+/*
+ * Start watching a process.
+ * @param process	the identifier for the process to watch
+ * @return		0 on success,
+ *			-1 with errno set to
+ *				ENOMEM if no space could be allocated
+ *					for the new process,
+ *				EINVAL if the process is already watched
+ */
+int add_process_trap(ulong process);
+/*
+ * Stop watching a process.
+ * @param process	the identifier for the process to unwatch
+ * @return		0 on success,
+ *			-1 with errno set to
+ *				EINVAL if the process was not previously watched
+ */
+int remove_process_trap(ulong process);
 
 //vm functions
 int attach_vcpus();
